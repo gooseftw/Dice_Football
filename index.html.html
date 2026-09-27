@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Dice Football</title>
+  <style>
+    :root {
+      --turf: #1a6b2a;
+      --turf-dark: #145222;
+      --line: rgba(255,255,255,.85);
+      --away: #3b82f6;
+      --home: #ef4444;
+      --bg: #0b1220;
+      --card: #121a2b;
+      --text: #f4f7fb;
+      --muted: #9aa7bd;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+    }
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 12px 12px calc(18px + env(safe-area-inset-bottom));
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    h1 { font-size: 1.05rem; margin: 0; letter-spacing: .04em; }
+    .bug { margin-bottom: 8px; }
+    .names {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border-radius: 10px 10px 0 0;
+      overflow: hidden;
+      font-size: .68rem;
+      font-weight: 800;
+      letter-spacing: .1em;
+    }
+    .names-away, .names-home {
+      padding: 5px 10px;
+      background: #1a2336;
+    }
+    .names-away { color: #93c5fd; text-align: left; }
+    .names-home { color: #fca5a5; text-align: right; border-left: 1px solid #0b1220; }
+    .scores {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: stretch;
+      border-radius: 0 0 12px 12px;
+      overflow: hidden;
+    }
+    .slab {
+      display: flex;
+      align-items: center;
+      min-height: 48px;
+      padding: 4px 12px;
+    }
+    .slab.away { background: #2563eb; justify-content: flex-start; }
+    .slab.home { background: #dc2626; justify-content: flex-end; }
+    .slab .pts {
+      font-size: 1.7rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1;
+    }
+    .pigskin {
+      width: 12px;
+      height: 20px;
+      margin-right: 8px;
+      background: #c26a21;
+      border-radius: 6px / 10px;
+      box-shadow: 0 1px 0 #7a3d0c;
+      position: relative;
+      display: none;
+      flex-shrink: 0;
+    }
+    .pigskin::after {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: 5px;
+      bottom: 5px;
+      width: 2px;
+      background: #fff;
+      border-radius: 1px;
+    }
+    .slab.onoff .pigskin { display: block; }
+    .slab.home .pigskin { margin-right: 0; margin-left: 8px; order: 2; }
+    .notch {
+      background: #0b1220;
+      color: #fff;
+      min-width: 44px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 8px;
+      clip-path: polygon(18% 0, 82% 0, 100% 50%, 82% 100%, 18% 100%, 0 50%);
+    }
+    .notch strong { font-size: .95rem; font-weight: 800; line-height: 1; }
+    .notch span { font-size: .52rem; letter-spacing: .08em; color: var(--muted); }
+    .die-wrap.active .die { outline: 3px solid #facc15; }
+    .field-wrap {
+      background: linear-gradient(#0e7a32, #0b5c26);
+      border-radius: 12px;
+      padding: 8px 6px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 3px #f3e27a;
+    }
+    .field {
+      position: relative;
+      height: 92px;
+      display: grid;
+      grid-template-columns: 18px repeat(40, 1fr) 18px;
+    }
+    .ez {
+      background: repeating-linear-gradient(135deg, #0a4d20 0 6px, #0c5a26 6px 12px);
+      display: flex; align-items: center; justify-content: center;
+      writing-mode: vertical-rl;
+      font-size: .55rem; letter-spacing: .15em; color: rgba(255,255,255,.7);
+    }
+    .ez.left { color: #93c5fd; }
+    .ez.right { color: #fca5a5; transform: rotate(180deg); writing-mode: vertical-rl; }
+    .yard {
+      border-left: 1px solid rgba(255,255,255,.28);
+      position: relative;
+    }
+    .yard.five { border-left-color: rgba(255,255,255,.45); }
+    .yard.ten { border-left: 2px solid rgba(255,255,255,.8); }
+    .hash {
+      position: absolute;
+      left: 0;
+      width: 1px;
+      background: rgba(255,255,255,.35);
+    }
+    .hash.top { top: 0; height: 8px; }
+    .hash.bot { bottom: 0; height: 8px; }
+    .ball {
+      position: absolute;
+      top: 50%;
+      width: 22px; height: 14px;
+      margin-left: -11px; margin-top: -7px;
+      background: #c26a21;
+      border-radius: 10px / 7px;
+      box-shadow: 0 1px 0 #7a3d0c;
+      transition: left .35s ease;
+      z-index: 2;
+    }
+    .ball::after {
+      content: "";
+      position: absolute; left: 6px; right: 6px; top: 6px; height: 2px;
+      background: #fff; border-radius: 1px;
+    }
+    .legend {
+      display: grid;
+      grid-template-columns: 18px repeat(40, 1fr) 18px;
+      font-size: .7rem;
+      color: rgba(255,255,255,.9);
+      padding-top: 4px;
+      font-weight: 700;
+    }
+    .legend .mark {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      grid-column: span 1;
+      white-space: nowrap;
+    }
+    .tri {
+      width: 0; height: 0;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+    }
+    .tri.left { border-right: 6px solid #93c5fd; }
+    .tri.right { border-left: 6px solid #fca5a5; }
+    .status {
+      margin: 10px 0 8px;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 8px 12px;
+    }
+    .status .play { font-size: .95rem; font-weight: 650; text-align: center; }
+    .status .detail { display: none; }
+    .badge {
+      display: inline-block; font-size: .65rem; letter-spacing: .06em;
+      padding: 2px 7px; border-radius: 999px; background: #243049; margin-right: 6px;
+    }
+    .badge.td { background: #854d0e; color: #fde68a; }
+    .badge.to { background: #7f1d1d; }
+    .badge.big { background: #1e3a8a; }
+    .badge.sack { background: #3f3f46; }
+    .dice-row {
+      display: flex; gap: 10px; justify-content: center; margin: 12px 0;
+    }
+    .die {
+      width: 62px; height: 62px; border-radius: 12px;
+      background: linear-gradient(160deg, #fff, #e2e8f0);
+      color: #111;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      padding: 7px;
+      box-shadow: 0 6px 0 #94a3b8, inset 0 1px 0 #fff;
+      transform-origin: center;
+    }
+    .die.def {
+      background: linear-gradient(160deg, #334155, #0f172a);
+      color: #f8fafc;
+      box-shadow: 0 6px 0 #020617, inset 0 1px 0 #64748b;
+    }
+    .pip {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: currentColor;
+      justify-self: center; align-self: center;
+      opacity: 0;
+    }
+    .die[data-face="1"] .p5,
+    .die[data-face="2"] .p1, .die[data-face="2"] .p9,
+    .die[data-face="3"] .p1, .die[data-face="3"] .p5, .die[data-face="3"] .p9,
+    .die[data-face="4"] .p1, .die[data-face="4"] .p3, .die[data-face="4"] .p7, .die[data-face="4"] .p9,
+    .die[data-face="5"] .p1, .die[data-face="5"] .p3, .die[data-face="5"] .p5, .die[data-face="5"] .p7, .die[data-face="5"] .p9,
+    .die[data-face="6"] .p1, .die[data-face="6"] .p3, .die[data-face="6"] .p4, .die[data-face="6"] .p6, .die[data-face="6"] .p7, .die[data-face="6"] .p9
+    { opacity: 1; }
+    @keyframes die-shake {
+      0%, 100% { transform: rotate(0deg) translate(0,0); }
+      25% { transform: rotate(-16deg) translate(-3px, 2px); }
+      50% { transform: rotate(14deg) translate(3px, -2px); }
+      75% { transform: rotate(-10deg) translate(2px, 2px); }
+    }
+    .die.rolling { animation: die-shake .11s linear infinite; }
+    .die .lbl { position: absolute; margin-top: 78px; font-size: .65rem; color: var(--muted); font-weight: 600; }
+    .die-wrap { position: relative; display: flex; flex-direction: column; align-items: center; }
+    .die-wrap span { margin-top: 6px; font-size: .65rem; color: var(--muted); }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    button {
+      appearance: none; border: 0; border-radius: 12px;
+      padding: 14px 10px; font-weight: 700; font-size: .95rem;
+      background: #f4f7fb; color: #0b1220; cursor: pointer;
+    }
+    button.primary { background: #22c55e; color: #052e16; grid-column: 1 / -1; }
+    button.ghost { background: #1e293b; color: var(--text); }
+    button:disabled { opacity: .45; cursor: default; }
+    .log {
+      margin-top: 12px; max-height: 140px; overflow: auto;
+      font-size: .75rem; color: var(--muted);
+    }
+    .log div { padding: 3px 0; border-bottom: 1px solid #1e293b; }
+    dialog {
+      border: 0; border-radius: 16px; background: var(--card); color: var(--text);
+      width: min(92vw, 420px); padding: 18px;
+    }
+    dialog::backdrop { background: rgba(0,0,0,.55); }
+    .settings label { display: block; margin: 8px 0; font-size: .9rem; }
+    .outlook {
+      display: block;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 8px;
+      margin-bottom: 8px;
+    }
+    .outlook h3 {
+      margin: 0 0 6px;
+      font-size: .82rem;
+      letter-spacing: .02em;
+      color: var(--text);
+      font-weight: 700;
+      line-height: 1.3;
+      text-transform: none;
+    }
+    .outlook .sum { font-size: .78rem; margin-bottom: 8px; line-height: 1.35; }
+    .faces {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 4px;
+    }
+    .face {
+      background: #0b1220;
+      border-radius: 8px;
+      padding: 5px 2px 6px;
+      text-align: center;
+    }
+    .face .n { font-size: .65rem; color: var(--muted); }
+    .face .t { font-size: .58rem; font-weight: 800; letter-spacing: .02em; margin-top: 2px; }
+    .face .y { font-size: .7rem; margin-top: 1px; }
+    .face.to { background: #7f1d1d; }
+    .face.pick6 { background: #4c0519; }
+    .face.sack { background: #3f3f46; }
+    .face.stuffed { background: #1e293b; }
+    .face.house { background: #422006; color: #fde68a; }
+    .face.big { background: #1e3a8a; }
+    .face.standard { background: #14532d; }
+    .face.hit {
+      outline: 2px solid #facc15;
+      box-shadow: 0 0 0 2px rgba(250,204,21,.35);
+      transform: translateY(-2px);
+    }
+    .outlook.resolved .face:not(.hit) { opacity: .42; }
+    .boom {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 8, 16, .72);
+      z-index: 40;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease;
+    }
+    .boom.show { opacity: 1; pointer-events: auto; }
+    .boom-card {
+      min-width: 70%;
+      max-width: 420px;
+      padding: 22px 18px 20px;
+      border-radius: 16px;
+      text-align: center;
+      transform: scale(.86);
+      transition: transform .22s cubic-bezier(.2,1.4,.3,1);
+      box-shadow: 0 18px 40px rgba(0,0,0,.45);
+    }
+    .boom.show .boom-card { transform: scale(1); }
+    .boom-card .word {
+      font-size: 1.55rem;
+      font-weight: 900;
+      letter-spacing: .06em;
+      line-height: 1.1;
+    }
+    .boom-card .sub {
+      margin-top: 10px;
+      font-size: .72rem;
+      letter-spacing: .04em;
+      font-weight: 650;
+      color: rgba(255,255,255,.82);
+      line-height: 1.35;
+      text-transform: none;
+    }
+    .boom[data-kind="td"] .boom-card { background: #854d0e; color: #fde68a; }
+    .boom[data-kind="safety"] .boom-card { background: #1e3a8a; color: #bfdbfe; }
+    .boom[data-kind="to"] .boom-card { background: #7f1d1d; color: #fecaca; }
+    .boom[data-kind="punt"] .boom-card { background: #334155; color: #e2e8f0; }
+    .boom[data-kind="over"] .boom-card { background: #0f172a; color: #f8fafc; border: 2px solid #facc15; }
+  </style>
+</head>
+<body>
+  <div class="boom" id="boom" data-kind="td">
+    <div class="boom-card">
+      <div class="word" id="boomWord">TOUCHDOWN!</div>
+      <div class="sub" id="boomSub"></div>
+    </div>
+  </div>
+  <div class="app">
+    <header>
+      <h1>DICE FOOTBALL</h1>
+      <div style="display:flex;gap:6px">
+        <button class="ghost" id="newBtn" style="padding:8px 10px;font-size:.8rem">New game</button>
+        <button class="ghost" id="gear" style="padding:8px 10px;font-size:.8rem">Rules</button>
+      </div>
+    </header>
+
+    <div class="bug">
+      <div class="names">
+        <div class="names-away" id="awayWho">YOU</div>
+        <div class="names-home" id="homeWho">CPU</div>
+      </div>
+      <div class="scores">
+        <div class="slab away onoff" id="awaySlab">
+          <span class="pigskin" aria-hidden="true"></span>
+          <span class="pts" id="awayScore">0</span>
+        </div>
+        <div class="notch">
+          <strong id="phase">0–0</strong>
+          <span id="clock">POSS</span>
+        </div>
+        <div class="slab home" id="homeSlab">
+          <span class="pts" id="homeScore">0</span>
+          <span class="pigskin" aria-hidden="true"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="field-wrap">
+      <div class="field" id="field">
+        <div class="ez left">AWAY</div>
+        <!-- 30 yards injected -->
+        <div class="ez right">HOME</div>
+        <div class="ball" id="ball"></div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="status">
+      <div class="play" id="playLine">1st &amp; 10 from the Away Team's 10</div>
+      <div class="detail" id="detail"></div>
+    </div>
+
+    <div class="dice-row">
+      <div class="die-wrap"><div class="die" id="d1" data-face="">
+        <i class="pip p1"></i><i class="pip p2"></i><i class="pip p3"></i>
+        <i class="pip p4"></i><i class="pip p5"></i><i class="pip p6"></i>
+        <i class="pip p7"></i><i class="pip p8"></i><i class="pip p9"></i>
+      </div><span>OFF</span></div>
+      <div class="die-wrap"><div class="die" id="d2" data-face="">
+        <i class="pip p1"></i><i class="pip p2"></i><i class="pip p3"></i>
+        <i class="pip p4"></i><i class="pip p5"></i><i class="pip p6"></i>
+        <i class="pip p7"></i><i class="pip p8"></i><i class="pip p9"></i>
+      </div><span>OFF</span></div>
+      <div class="die-wrap"><div class="die die def" id="d3" data-face="">
+        <i class="pip p1"></i><i class="pip p2"></i><i class="pip p3"></i>
+        <i class="pip p4"></i><i class="pip p5"></i><i class="pip p6"></i>
+        <i class="pip p7"></i><i class="pip p8"></i><i class="pip p9"></i>
+      </div><span>DEF</span></div>
+    </div>
+
+    <div class="outlook" id="outlook">
+      <h3 id="outlookHead">If Defense Rolls</h3>
+      <div class="sum" id="outlookSum">Roll offense to see every defense result.</div>
+      <div class="faces" id="outlookFaces"></div>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="rollBtn">Roll play</button>
+      <button class="ghost" id="puntBtn">Punt (4th)</button>
+    </div>
+
+    <div class="log" id="log"></div>
+  </div>
+
+  <dialog id="rules">
+    <h2 style="margin:0 0 8px">How it works</h2>
+    <p style="font-size:.9rem;line-height:1.45">
+      40-yard field, numbered like a real field up to the 20 from each end. Touchdown = 7. No PAT.
+      First-down lines every 10 yards. 4 downs to reach the next line.
+      Each play: Offense 2d6, Defense 1d6.<br><br>
+      <b>Standard:</b> yards = O1 + O2 − D<br>
+      <b>Big play:</b> both offense 5–6 and defense 1–2 → standard yards + one bonus d6<br>
+      <b>To the house:</b> 6–6 and defense 1 → offense touchdown from anywhere (+7)<br>
+      <b>Stuffed:</b> defense die is greater than <i>both</i> offense dice → 0 yards<br>
+      <b>Sack:</b> defense die &gt; sum of offense dice → lose <b>twice</b> the difference. Through your own goal line is a safety.<br>
+      <b>Turnover:</b> both offense 1–2 and defense 5–6 → other team takes over at that spot<br>
+      <b>Pick 6:</b> 1–1 and defense 6 → defense touchdown (+7)<br>
+      Priority: Pick 6 → Turnover → Sack → Stuffed → To the house → Big play → Standard.<br><br>
+      New drives after a TD or to start the game: own 10. Punt on 4th pins the opponent at their 3.
+      Safety = 2; the other team then starts at their 10.<br><br>
+      <b>Win:</b> 8 possessions each. A possession ends on a touchdown, safety, punt, turnover, or turnover on downs.
+      If the score is tied after 8 and 8, each team gets one extra possession (Away, then Home). Repeat that pair until one team leads after both have gone.
+      If a team is about to start a possession already ahead by more than the other team can score with their remaining possessions (7 per possession), the game ends.
+    </p>
+    <label>Opponent
+      <select id="mode" style="margin-left:8px;background:#0b1220;color:#fff;padding:4px;border-radius:6px">
+        <option value="cpu">You (AWAY) vs CPU (HOME)</option>
+        <option value="hotseat">Pass and play</option>
+      </select>
+    </label>
+    <div style="margin-top:12px;text-align:right">
+      <button class="primary" id="closeRules" style="grid-column:auto;padding:10px 16px">Close</button>
+    </div>
+  </dialog>
+
+<script>
+const FIELD = 40;
+const FIRST = 10;
+const TD = 7;
+const SAFE = 2;
+const REG_POSS = 8;
+
+const $ = (id) => document.getElementById(id);
+
+let audioCtx = null;
+function audio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+
+function envGain(ctx, start, peak, attack, hold, release) {
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, start);
+  g.gain.exponentialRampToValueAtTime(peak, start + attack);
+  g.gain.setValueAtTime(peak, start + attack + hold);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + attack + hold + release);
+  return g;
+}
+
+function tone(ctx, freq, type, start, dur, peak, dest) {
+  const o = ctx.createOscillator();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, start);
+  const g = envGain(ctx, start, peak, 0.01, Math.max(0.01, dur - 0.08), 0.06);
+  o.connect(g); g.connect(dest || ctx.destination);
+  o.start(start); o.stop(start + dur + 0.05);
+  return o;
+}
+
+function noiseBuf(ctx, seconds) {
+  const n = Math.floor(ctx.sampleRate * seconds);
+  const b = ctx.createBuffer(1, n, ctx.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  return b;
+}
+
+function noiseBurst(ctx, start, dur, peak, hpHz, dest) {
+  const src = ctx.createBufferSource();
+  src.buffer = noiseBuf(ctx, dur + 0.05);
+  const f = ctx.createBiquadFilter();
+  f.type = hpHz > 800 ? "highpass" : "bandpass";
+  f.frequency.value = hpHz;
+  f.Q.value = hpHz > 800 ? 0.7 : 1.2;
+  const g = envGain(ctx, start, peak, 0.008, dur * 0.25, dur * 0.7);
+  src.connect(f); f.connect(g); g.connect(dest || ctx.destination);
+  src.start(start); src.stop(start + dur + 0.05);
+}
+
+function clickDie(ctx, t, pitch) {
+  tone(ctx, pitch, "triangle", t, 0.035, 0.07);
+  noiseBurst(ctx, t, 0.04, 0.09, 2200);
+}
+
+function sfxDice() {
+  const ctx = audio();
+  const t = ctx.currentTime + 0.01;
+  const hits = [0, 0.05, 0.09, 0.14, 0.2, 0.26, 0.33, 0.41, 0.5];
+  hits.forEach((off, i) => clickDie(ctx, t + off, 900 + (i % 4) * 160 + Math.random() * 80));
+}
+
+function sfxGainShort() {
+  const ctx = audio();
+  const t = ctx.currentTime;
+  tone(ctx, 240, "sine", t, 0.09, 0.08);
+  tone(ctx, 300, "sine", t + 0.06, 0.08, 0.06);
+}
+
+function sfxGainLong() {
+  const ctx = audio();
+  const t = ctx.currentTime;
+  tone(ctx, 280, "sine", t, 0.1, 0.08);
+  tone(ctx, 360, "sine", t + 0.08, 0.12, 0.09);
+  tone(ctx, 420, "sine", t + 0.18, 0.12, 0.07);
+}
+
+function sfxSack() {
+  const ctx = audio();
+  const t = ctx.currentTime;
+  tone(ctx, 48, "sine", t, 0.38, 0.32);
+  tone(ctx, 72, "triangle", t, 0.22, 0.18);
+  noiseBurst(ctx, t, 0.22, 0.2, 160);
+  tone(ctx, 36, "sine", t + 0.08, 0.28, 0.14);
+}
+
+function sfxStuffed() {
+  const ctx = audio();
+  const t = ctx.currentTime;
+  tone(ctx, 420, "square", t, 0.05, 0.05);
+  tone(ctx, 180, "triangle", t + 0.03, 0.07, 0.08);
+  noiseBurst(ctx, t, 0.06, 0.08, 1400);
+}
+
+function sfxTurnover() {
+  const ctx = audio();
+  const t = ctx.currentTime;
+  const o = ctx.createOscillator();
+  o.type = "sawtooth";
+  o.frequency.setValueAtTime(640, t);
+  o.frequency.exponentialRampToValueAtTime(90, t + 0.55);
+  const g = envGain(ctx, t, 0.11, 0.02, 0.2, 0.32);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t); o.stop(t + 0.6);
+  tone(ctx, 155, "square", t + 0.08, 0.14, 0.05);
+  tone(ctx, 110, "square", t + 0.22, 0.18, 0.05);
+}
+
+function sfxFirst() {
+  const ctx = audio();
+  const t = ctx.currentTime;
+  tone(ctx, 392, "triangle", t, 0.14, 0.1);
+  tone(ctx, 523, "triangle", t + 0.1, 0.18, 0.11);
+}
+
+function sfxTd() {
+  const ctx = audio();
+  const t = ctx.currentTime;
+  tone(ctx, 392, "triangle", t, 0.14, 0.08);
+  tone(ctx, 523, "triangle", t + 0.1, 0.14, 0.09);
+  tone(ctx, 659, "triangle", t + 0.22, 0.16, 0.11);
+  tone(ctx, 784, "triangle", t + 0.36, 0.28, 0.13);
+  tone(ctx, 1046, "sine", t + 0.48, 0.22, 0.07);
+}
+
+function sfxSafety() {
+  const ctx = audio();
+  const t = ctx.currentTime;
+  tone(ctx, 880, "sine", t, 0.18, 0.08);
+  tone(ctx, 880, "sine", t + 0.2, 0.22, 0.08);
+  tone(ctx, 90, "triangle", t + 0.12, 0.25, 0.16);
+}
+
+function sfxPunt() {
+  const ctx = audio();
+  const t = ctx.currentTime;
+  tone(ctx, 160, "sine", t, 0.08, 0.16);
+  const o = ctx.createOscillator();
+  o.type = "sine";
+  o.frequency.setValueAtTime(500, t + 0.06);
+  o.frequency.exponentialRampToValueAtTime(220, t + 0.55);
+  const g = envGain(ctx, t + 0.06, 0.1, 0.02, 0.15, 0.32);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t + 0.06); o.stop(t + 0.6);
+}
+
+function sfxOver() {
+  const ctx = audio();
+  const t = ctx.currentTime;
+  tone(ctx, 262, "triangle", t, 0.25, 0.1);
+  tone(ctx, 330, "triangle", t + 0.18, 0.28, 0.1);
+  tone(ctx, 392, "triangle", t + 0.38, 0.4, 0.12);
+}
+
+function playResultSfx(res, tag) {
+  if (tag === "td") return sfxTd();
+  if (tag === "first") return sfxFirst();
+  if (tag === "safety") return sfxSafety();
+  if (tag === "punt") return sfxPunt();
+  if (tag === "over") return sfxOver();
+  if (!res) return;
+  if (res.type === "turnover") return sfxTurnover();
+  if (res.type === "sack") return sfxSack();
+  if (res.type === "stuffed") return sfxStuffed();
+  if (res.type === "big") return sfxFirst();
+  if ((res.yards || 0) >= 6) return sfxGainLong();
+  return sfxGainShort();
+}
+
+const fieldEl = $("field");
+const ezRight = fieldEl.querySelector(".ez.right");
+const legendEl = $("legend");
+legendEl.appendChild(document.createElement("span"));
+for (let i = 0; i < FIELD; i++) {
+  const y = document.createElement("div");
+  let cls = "yard";
+  if (i % 10 === 0) cls += " ten";
+  else if (i % 5 === 0) cls += " five";
+  y.className = cls;
+  y.innerHTML = '<div class="hash top"></div><div class="hash bot"></div>';
+  fieldEl.insertBefore(y, ezRight);
+
+  const cell = document.createElement("span");
+  if (i === 10) cell.innerHTML = '<span class="mark"><i class="tri left"></i>10</span>';
+  else if (i === 20) cell.innerHTML = '<span class="mark">20</span>';
+  else if (i === 30) cell.innerHTML = '<span class="mark">10<i class="tri right"></i></span>';
+  legendEl.appendChild(cell);
+}
+legendEl.appendChild(document.createElement("span"));
+
+const state = {
+  away: 0, home: 0,
+  offense: "away",
+  firstPossession: "away",
+  spot: 10,
+  marker: 20,
+  down: 1,
+  distance: 10,
+  over: false,
+  mode: "cpu",
+  phase: "reg", // reg | ot
+  poss: { away: 0, home: 0 },
+  otPoss: { away: 0, home: 0 },
+  snap: "offense", // offense | defense
+  pendingO1: null,
+  pendingO2: null,
+  busy: false,
+  cpuTimer: null,
+};
+
+function other(t) { return t === "away" ? "home" : "away"; }
+function dir(team) { return (team || state.offense) === "away" ? 1 : -1; }
+function toGoal(team, spot) {
+  const t = team || state.offense;
+  const s = spot == null ? state.spot : spot;
+  return t === "away" ? FIELD - s : s;
+}
+function ownZero(team) { return team === "away" ? 0 : FIELD; }
+function ownTen(team) { return team === "away" ? 10 : FIELD - 10; }
+function puntSpot(team) { return team === "away" ? 3 : FIELD - 3; }
+function nextStripe(team, spot) {
+  if (team === "away") {
+    if (spot < 10) return 10;
+    if (spot < 20) return 20;
+    if (spot < 30) return 30;
+    return FIELD;
+  }
+  if (spot > 30) return 30;
+  if (spot > 20) return 20;
+  if (spot > 10) return 10;
+  return 0;
+}
+
+function spotName(spot, forScore) {
+  const s = Math.round(spot);
+  if (forScore || s < 0) return "the Away end zone";
+  if (forScore || s > FIELD) return "the Home end zone";
+  if (s <= 0) return "the Away Team's 0";
+  if (s >= FIELD) return "the Home Team's 0";
+  if (s === 20) return "midfield";
+  if (s < 20) return "the Away Team's " + s;
+  return "the Home Team's " + (FIELD - s);
+}
+
+function setSeries(team, spot) {
+  const mark = nextStripe(team, spot);
+  state.marker = mark;
+  state.distance = Math.abs(mark - spot);
+  if (state.distance < 1) state.distance = Math.max(1, toGoal(team, spot));
+  state.down = 1;
+}
+
+function placeBall() {
+  const field = $("field").getBoundingClientRect();
+  const leftEz = 18;
+  const usable = field.width - 36;
+  $("ball").style.left = (leftEz + (state.spot / FIELD) * usable) + "px";
+}
+
+function refresh() {
+  $("awayScore").textContent = state.away;
+  $("homeScore").textContent = state.home;
+  if (state.over) { $("phase").textContent = "FINAL"; $("clock").textContent = ""; }
+  else if (state.phase === "ot") {
+    $("phase").textContent = `${state.otPoss.away}–${state.otPoss.home}`;
+    $("clock").textContent = "OT";
+  } else {
+    $("phase").textContent = `${state.poss.away}–${state.poss.home}`;
+    $("clock").textContent = "POSS";
+  }
+  $("awaySlab").classList.toggle("onoff", !state.over && state.offense === "away");
+  $("homeSlab").classList.toggle("onoff", !state.over && state.offense === "home");
+  const toGo = state.distance;
+  const downWord = ["", "1st", "2nd", "3rd", "4th"][state.down] || state.down + "th";
+  const goal = toGoal() <= toGo || toGoal() === toGo;
+  $("playLine").textContent = state.over
+    ? (state.away === state.home ? "Tie" : (state.away > state.home ? "Away wins" : "Home wins"))
+    : `${downWord} & ${toGoal() <= toGo ? "Goal" : toGo} from ${spotName(state.spot)}`;
+
+  if (state.mode === "cpu") {
+    $("awayWho").textContent = "YOU";
+    $("homeWho").textContent = "CPU";
+  } else {
+    $("awayWho").textContent = "PLAYER 1";
+    $("homeWho").textContent = "PLAYER 2";
+  }
+
+  const cpuHasBall = state.mode === "cpu" && state.offense === "home" && !state.over;
+  $("puntBtn").disabled = state.over || state.busy || state.down !== 4 || cpuHasBall || state.snap !== "offense";
+  $("rollBtn").disabled = state.over || state.busy || (cpuHasBall && state.snap === "offense");
+  if (state.snap === "defense") $("rollBtn").textContent = "Roll Defense";
+  else $("rollBtn").textContent = "Roll Offense";
+
+  document.querySelectorAll(".die-wrap")[0].classList.toggle("active", !state.over && state.snap === "offense");
+  document.querySelectorAll(".die-wrap")[1].classList.toggle("active", !state.over && state.snap === "offense");
+  document.querySelectorAll(".die-wrap")[2].classList.toggle("active", !state.over && state.snap === "defense");
+  placeBall();
+}
+
+function log(msg) {
+  const el = document.createElement("div");
+  el.textContent = msg;
+  $("log").prepend(el);
+}
+
+function d6() { return 1 + Math.floor(Math.random() * 6); }
+
+function resolve(o1, o2, d, bonusDie) {
+  const sum = o1 + o2;
+  const bothLow = o1 <= 2 && o2 <= 2;
+  const bothHigh = o1 >= 5 && o2 >= 5;
+  const base = { o1, o2, d };
+  if (o1 === 1 && o2 === 1 && d === 6) return { ...base, type: "pick6", yards: 0 };
+  if (bothLow && d >= 5) return { ...base, type: "turnover", yards: 0 };
+  if (d > sum) return { ...base, type: "sack", yards: -2 * (d - sum) };
+  if (d > o1 && d > o2) return { ...base, type: "stuffed", yards: 0 };
+  if (o1 === 6 && o2 === 6 && d === 1) return { ...base, type: "house", yards: 0 };
+  let yards = sum - d;
+  if (bothHigh && d <= 2) {
+    const b = bonusDie ?? d6();
+    return { ...base, type: "big", yards: yards + b, bonus: b };
+  }
+  return { ...base, type: "standard", yards };
+}
+
+function outlookFor(o1, o2) {
+  const labels = { pick6: "PICK6", turnover: "TO", sack: "SACK", stuffed: "STUFF", house: "HOUSE", big: "BIG", standard: "GAIN" };
+  const rows = [];
+  for (let d = 1; d <= 6; d++) {
+    const res = resolve(o1, o2, d, 0);
+    let ytxt = "";
+    if (res.type === "turnover") ytxt = "ball";
+    else if (res.type === "pick6") ytxt = "def TD";
+    else if (res.type === "house") ytxt = "TD";
+    else if (res.type === "big") ytxt = "+" + (o1 + o2 - d) + "+?";
+    else if (res.yards > 0) ytxt = "+" + res.yards;
+    else ytxt = String(res.yards);
+    rows.push({ d, type: res.type, label: labels[res.type], ytxt, yards: res.yards });
+  }
+  const parts = [];
+  const group = (pred, text) => {
+    const ds = rows.filter(pred).map(r => r.d);
+    if (ds.length) parts.push(text.replace("%s", ds.join(" or ")));
+  };
+  group(r => r.type === "pick6", "Pick 6 on %s");
+  group(r => r.type === "turnover", "Turnover on %s");
+  group(r => r.type === "sack", "Sack on %s");
+  group(r => r.type === "stuffed", "Stuffed on %s");
+  group(r => r.type === "house", "To the house on %s");
+  group(r => r.type === "big", "Big play on %s");
+  const std = rows.filter(r => r.type === "standard");
+  if (std.length) {
+    const min = Math.min(...std.map(r => r.yards));
+    const max = Math.max(...std.map(r => r.yards));
+    parts.push(min === max ? `Standard +${min} otherwise` : `Standard +${min} to +${max} otherwise`);
+  }
+  return { rows, summary: parts.join(". ") + "." };
+}
+
+function resultReason(res, scored) {
+  const { type, yards } = res;
+  if (scored === "safety") return "Result: Safety!";
+  if (scored) return "Result: Touchdown!";
+  if (type === "pick6") return "Result: Pick 6!";
+  if (type === "house") return "Result: To the house!";
+  if (type === "turnover") return "Result: Turnover";
+  if (type === "sack") return `Result: Sack ${yards} yards`;
+  if (type === "stuffed") return "Result: Stuffed";
+  if (type === "big") return `Result: Big Play for ${yards} yards!`;
+  return `Result: Standard Gain ${yards} yards`;
+}
+
+function downPhrase() {
+  if (state.over) return "";
+  const downWord = ["", "1st", "2nd", "3rd", "4th"][state.down] || (state.down + "th");
+  return `${downWord} & ${toGoal() <= state.distance ? "Goal" : state.distance}`;
+}
+
+function resultBody(res, toYard, extra) {
+  let eq = `${res.o1}+${res.o2} − ${res.d}`;
+  if (res.type === "big" && res.bonus != null) eq += ` + bonus ${res.bonus}`;
+  let line;
+  if (res.type === "pick6") {
+    line = `${eq} = Pick 6. ${other(state.offense).toUpperCase()} +7.`;
+  } else if (res.type === "house") {
+    line = `${eq} = To the house. ${state.offense.toUpperCase()} +7 from anywhere.`;
+  } else if (res.type === "turnover") {
+    line = `${eq} = Turnover. ${other(state.offense).toUpperCase()} takes over from ${spotName(state.spot)}.`;
+  } else {
+    line = `${eq} = ${res.yards} yards to ${spotName(toYard, toYard <= 0 || toYard >= FIELD)}.`;
+  }
+  if (extra) line += " " + extra;
+  return line;
+}
+
+function showOutlook(o1, o2) {
+  const box = $("outlook");
+  const { rows, summary } = outlookFor(o1, o2);
+  $("outlookHead").textContent = "If Defense Rolls";
+  $("outlookSum").textContent = summary;
+  $("outlookFaces").innerHTML = rows.map(r =>
+    `<div class="face ${r.type}" data-d="${r.d}"><div class="n">D${r.d}</div><div class="t">${r.label}</div><div class="y">${r.ytxt}</div></div>`
+  ).join("");
+  box.classList.remove("resolved");
+}
+
+function markOutlook(res) {
+  const box = $("outlook");
+  box.classList.add("resolved");
+  box.querySelectorAll(".face").forEach((el) => {
+    el.classList.toggle("hit", Number(el.dataset.d) === res.d);
+  });
+  $("outlookHead").textContent = resultReason(res, false);
+}
+
+function resetOutlook() {
+  $("outlook").classList.remove("resolved");
+  $("outlookHead").textContent = "If Defense Rolls";
+  $("outlookSum").textContent = "Roll offense to see every defense result.";
+  $("outlookFaces").innerHTML = [1,2,3,4,5,6].map(d =>
+    `<div class="face" data-d="${d}"><div class="n">D${d}</div><div class="t">—</div><div class="y"></div></div>`
+  ).join("");
+}
+
+function flashResult(word, kind, sub, persist) {
+  return new Promise((resolve) => {
+    const el = $("boom");
+    el.dataset.kind = kind;
+    $("boomWord").textContent = word;
+    $("boomSub").textContent = sub || "";
+    el.classList.add("show");
+    state.busy = true;
+    clearTimeout(state.boomTimer);
+    const dismiss = () => {
+      el.removeEventListener("click", dismiss);
+      el.classList.remove("show");
+      state.busy = false;
+      resolve();
+    };
+    if (persist) {
+      el.addEventListener("click", dismiss);
+      return;
+    }
+    state.boomTimer = setTimeout(dismiss, 1400);
+  });
+}
+
+function gameOverCopy() {
+  const a = state.away, h = state.home;
+  const title = a === h ? "GAME OVER — TIE" : (a > h ? "GAME OVER — AWAY WINS" : "GAME OVER — HOME WINS");
+  if (a === h) return { title, sub: "" };
+  const leader = a > h ? "away" : "home";
+  const trail = other(leader);
+  const leadPoss = Math.floor((scoreOf(leader) - scoreOf(trail)) / TD);
+  const left = remainingPoss(trail);
+  const name = leader === "away" ? "Away" : "Home";
+  if (state.phase === "ot") return { title, sub: "After overtime" };
+  const finished = state.poss.away >= REG_POSS && state.poss.home >= REG_POSS;
+  if (!finished && leadPoss > left) {
+    const by = leadPoss === 1 ? "1 possession" : leadPoss + " possessions";
+    const rem = left === 1 ? "1 remaining" : left + " remaining";
+    return { title, sub: `${name} leads by ${by} with only ${rem}` };
+  }
+  return { title, sub: `${a}–${h} after ${state.poss.away} and ${state.poss.home} possessions` };
+}
+
+function announce(word, kind, sub, after) {
+  flashResult(word, kind, sub).then(() => {
+    after();
+    if (state.over) {
+      const copy = gameOverCopy();
+      playResultSfx(null, "over");
+      flashResult(copy.title, "over", copy.sub, true);
+    }
+  });
+}
+
+function setResultText(res, toYard, extra, scored) {
+  $("outlookHead").textContent = resultReason(res, scored);
+  const body = resultBody(res, toYard, extra);
+  $("outlookSum").textContent = body;
+  $("detail").textContent = body;
+}
+
+function applyPlay(res) {
+  const who = state.offense.toUpperCase();
+  if (res.type === "pick6") {
+    if (state.offense === "away") state.home += TD; else state.away += TD;
+    setResultText(res, state.spot, "Pick 6!");
+    log(`${who}  ${$("outlookSum").textContent} ${state.away}–${state.home}`);
+    playResultSfx(res, "td");
+    announce("PICK 6!", "td", other(state.offense).toUpperCase() + " +7", () => endPossession(false));
+    return;
+  }
+  if (res.type === "house") {
+    if (state.offense === "away") state.away += TD; else state.home += TD;
+    setResultText(res, state.spot, "To the house!");
+    log(`${who}  ${$("outlookSum").textContent} ${state.away}–${state.home}`);
+    playResultSfx(res, "td");
+    announce("TO THE HOUSE!", "td", who + " +7", () => endPossession(false));
+    return;
+  }
+  if (res.type === "turnover") {
+    setResultText(res, state.spot, "");
+    log(`${who}  ${$("outlookSum").textContent}`);
+    playResultSfx(res);
+    announce("TURNOVER!", "to", other(state.offense).toUpperCase() + " BALL", () => changePossession(true));
+    return;
+  }
+  let y = state.spot + dir() * res.yards;
+  const safety = (state.offense === "away" && y < 0) || (state.offense === "home" && y > FIELD);
+  if (safety) {
+    if (state.offense === "away") state.home += SAFE; else state.away += SAFE;
+    setResultText(res, y, "Safety! Defense +2.", "safety");
+    log(`${who}  Safety. ${state.away}–${state.home}`);
+    playResultSfx(res, "safety");
+    announce("SAFETY!", "safety", other(state.offense).toUpperCase() + " +2", () => endPossession(false));
+    return;
+  }
+
+  const scored = (state.offense === "away" && y >= FIELD) || (state.offense === "home" && y <= 0);
+  if (scored) {
+    if (state.offense === "away") state.away += TD; else state.home += TD;
+    setResultText(res, y, "Touchdown!", true);
+    log(`${who}  ${$("outlookSum").textContent} ${state.away}–${state.home}`);
+    playResultSfx(res, "td");
+    announce("TOUCHDOWN!", "td", who + " +7", () => endPossession(false));
+    return;
+  }
+
+  const oldSpot = state.spot;
+  state.spot = y;
+  const reached = state.offense === "away" ? state.spot >= state.marker : state.spot <= state.marker;
+  const gotFirst = reached && res.yards > 0;
+
+  if (gotFirst) {
+    setSeries(state.offense, state.spot);
+    setResultText(res, state.spot, downPhrase() + ".");
+    log(`${who}  ${$("outlookSum").textContent}`);
+    playResultSfx(res, "first");
+  } else {
+    state.down += 1;
+    state.distance -= res.yards;
+    if (state.distance < 1) state.distance = 1;
+    if (state.down > 4) {
+      setResultText(res, state.spot, "Turnover on downs.");
+      log(`${who}  ${$("outlookSum").textContent}`);
+      playResultSfx({ type: "turnover" });
+      announce("TURNOVER ON DOWNS", "to", other(state.offense).toUpperCase() + " BALL", () => changePossession(true));
+      return;
+    }
+    setResultText(res, state.spot, downPhrase() + ".");
+    log(`${who}  ${$("outlookSum").textContent}`);
+    playResultSfx(res, res.type === "big" ? "first" : undefined);
+  }
+  resetSnap();
+  refresh();
+  scheduleCpu();
+}
+
+function resetSnap() {
+  state.snap = "offense";
+  state.pendingO1 = null;
+  state.pendingO2 = null;
+}
+
+function scoreOf(t) { return t === "away" ? state.away : state.home; }
+
+function remainingPoss(team) {
+  if (state.phase === "ot") {
+    return state.otPoss[team] < Math.max(state.otPoss.away, state.otPoss.home, 1) ? 1 : 0;
+  }
+  return Math.max(0, REG_POSS - state.poss[team]);
+}
+
+function cannotCatch(leader, trail) {
+  return scoreOf(leader) - scoreOf(trail) > remainingPoss(trail) * TD;
+}
+
+function gameClinched() {
+  return cannotCatch("away", "home") || cannotCatch("home", "away");
+}
+
+function startDrive(team, keepSpot, atSpot) {
+  state.offense = team;
+  if (atSpot != null) state.spot = atSpot;
+  else if (!keepSpot) state.spot = ownTen(team);
+  setSeries(team, state.spot);
+  resetSnap();
+}
+
+function changePossession(keepSpot, atSpot) {
+  endPossession(keepSpot, atSpot);
+}
+
+function endPossession(keepSpot, atSpot) {
+  const just = state.offense;
+  if (state.phase === "ot") {
+    state.otPoss[just]++;
+    if (state.otPoss.away === state.otPoss.home) {
+      if (state.away !== state.home) {
+        state.over = true;
+        $("outlookSum").textContent += " Game over.";
+        resetSnap();
+        refresh();
+        return;
+      }
+      startDrive("away", false);
+      $("outlookSum").textContent += " Still tied. OT pair — Away ball.";
+      refresh();
+      scheduleCpu();
+      return;
+    }
+    if (gameClinched() || (state.otPoss.away === state.otPoss.home && state.away !== state.home)) {
+      state.over = true;
+      $("outlookSum").textContent += " Game over.";
+      resetSnap();
+      refresh();
+      return;
+    }
+    const nxt = other(just);
+    startDrive(nxt, keepSpot, atSpot);
+    refresh();
+    scheduleCpu();
+    return;
+  }
+
+  state.poss[just]++;
+  const done = state.poss.away >= REG_POSS && state.poss.home >= REG_POSS;
+  if (done) {
+    if (state.away === state.home) {
+      state.phase = "ot";
+      startDrive("away", false);
+      $("outlookSum").textContent += " Tied after 8. Overtime — Away ball.";
+      refresh();
+      scheduleCpu();
+      return;
+    }
+    state.over = true;
+    $("outlookSum").textContent += " Game over.";
+    resetSnap();
+    refresh();
+    return;
+  }
+  if (gameClinched()) {
+    state.over = true;
+    $("outlookSum").textContent += " Game over.";
+    resetSnap();
+    refresh();
+    return;
+  }
+  startDrive(other(just), keepSpot, atSpot);
+  refresh();
+  scheduleCpu();
+}
+
+function setFace(el, n) {
+  if (n && n !== "–") el.dataset.face = String(n);
+  else el.dataset.face = "";
+}
+
+function showDice(a,b,c) {
+  setFace($("d1"), a);
+  setFace($("d2"), b);
+  setFace($("d3"), c);
+}
+
+function rollDieEl(el, final, duration) {
+  return new Promise((resolve) => {
+    el.classList.add("rolling");
+    let interval = 45;
+    let elapsed = 0;
+    const tick = () => {
+      setFace(el, 1 + Math.floor(Math.random() * 6));
+      elapsed += interval;
+      interval = Math.min(170, interval * 1.16);
+      if (elapsed >= duration) {
+        el.classList.remove("rolling");
+        setFace(el, final);
+        resolve();
+        return;
+      }
+      setTimeout(tick, interval);
+    };
+    tick();
+  });
+}
+
+function clearCpuTimer() {
+  if (state.cpuTimer) {
+    clearTimeout(state.cpuTimer);
+    state.cpuTimer = null;
+  }
+}
+
+function scheduleCpu() {
+  clearCpuTimer();
+  if (state.over || state.mode !== "cpu") return;
+  if (state.offense === "home" && state.snap === "offense") {
+    state.cpuTimer = setTimeout(() => {
+      if (cpuWantsPunt()) punt();
+      else rollOffense();
+    }, 1200);
+  } else if (state.offense === "away" && state.snap === "defense") {
+    state.cpuTimer = setTimeout(() => rollDefense(), 2200);
+  }
+}
+
+function cpuWantsPunt() {
+  return state.down === 4 && state.distance >= 8 && toGoal() > 10;
+}
+
+async function rollOffense() {
+  if (state.over || state.busy || state.snap !== "offense") return;
+  if (state.mode === "cpu" && state.offense === "home" && cpuWantsPunt()) {
+    punt();
+    return;
+  }
+  state.busy = true;
+  refresh();
+  sfxDice();
+  const o1 = d6(), o2 = d6();
+  state.pendingO1 = o1;
+  state.pendingO2 = o2;
+  setFace($("d3"), "");
+  await Promise.all([
+    rollDieEl($("d1"), o1, 720),
+    rollDieEl($("d2"), o2, 820),
+  ]);
+  state.snap = "defense";
+  state.busy = false;
+  const who = state.offense.toUpperCase();
+  $("detail").textContent = `${who} offense rolls ${o1} and ${o2}. Roll defense.`;
+  showOutlook(o1, o2);
+  refresh();
+  scheduleCpu();
+}
+
+async function rollDefense() {
+  if (state.over || state.busy || state.snap !== "defense") return;
+  state.busy = true;
+  refresh();
+  sfxDice();
+  const o1 = state.pendingO1, o2 = state.pendingO2;
+  const d = d6();
+  await rollDieEl($("d3"), d, 780);
+  state.busy = false;
+  const res = resolve(o1, o2, d);
+  markOutlook(res);
+  applyPlay(res);
+}
+
+function rollPlay() {
+  if (state.over || state.busy) return;
+  audio();
+  if (state.snap === "offense") rollOffense();
+  else rollDefense();
+}
+
+function punt() {
+  if (state.over) return;
+  if (!(state.down === 4 || (state.mode === "cpu" && state.offense === "home"))) return;
+  const next = other(state.offense).toUpperCase();
+  const recv = other(state.offense);
+  log(`${state.offense.toUpperCase()}  Punt. ${next} takes over from ${spotName(puntSpot(recv))}.`);
+  $("detail").textContent = `Punt. ${next} takes over from ${spotName(puntSpot(recv))}.`;
+  showDice("–","–","–");
+  resetOutlook();
+  resetSnap();
+  playResultSfx(null, "punt");
+  announce("PUNT", "punt", next + " AT THE 3", () => changePossession(false, puntSpot(recv)));
+}
+
+function newGame() {
+  state.away = 0; state.home = 0;
+  state.offense = "away";
+  state.firstPossession = "away";
+  state.spot = 10; state.marker = 20; state.down = 1; state.distance = 10;
+  state.over = false;
+  state.phase = "reg";
+  state.poss = { away: 0, home: 0 };
+  state.otPoss = { away: 0, home: 0 };
+  resetSnap();
+  $("log").innerHTML = "";
+  showDice("–","–","–");
+  resetOutlook();
+  $("detail").textContent = "New game. Away starts from the Away Team's 10.";
+  state.busy = false;
+  clearCpuTimer();
+  $("boom").classList.remove("show");
+  refresh();
+}
+
+function maybeCpu() {}
+
+$("rollBtn").onclick = rollPlay;
+$("puntBtn").onclick = punt;
+$("newBtn").onclick = newGame;
+$("gear").onclick = () => $("rules").showModal();
+$("closeRules").onclick = () => {
+  state.mode = $("mode").value;
+  $("rules").close();
+  refresh();
+};
+window.addEventListener("resize", placeBall);
+resetOutlook();
+refresh();
+</script>
+</body>
+</html>
