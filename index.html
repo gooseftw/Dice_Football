@@ -1283,6 +1283,9 @@ $("closeRules").onclick = () => {
 window.addEventListener("resize", placeBall);
 resetOutlook();
 refresh();
+ if ("serviceWorker" in navigator) {
+ navigator.serviceWorker.register("./sw.js");
+}
 </script>
 </body>
 </html>
